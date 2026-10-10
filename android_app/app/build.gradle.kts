@@ -14,7 +14,7 @@ android {
         targetSdk = 34
         // Each cloud build gets a higher number automatically, so updates install cleanly
         versionCode = System.getenv("GITHUB_RUN_NUMBER")?.toIntOrNull() ?: 1
-        versionName = "0.1.$versionCode"
+        versionName = "2.0.$versionCode"
     }
 
     // One fixed key signs every build, so a new APK installs over the old one.
@@ -62,7 +62,6 @@ dependencies {
     implementation("androidx.core:core-ktx:1.13.1")
     implementation("androidx.activity:activity-compose:1.9.2")
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.8.6")
-    implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.8.6")
     implementation("androidx.compose.ui:ui")
     implementation("androidx.compose.foundation:foundation")
     implementation("androidx.compose.material3:material3")

@@ -1,5 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <color name="app_bg">#0D1020</color>
-    <color name="ic_bg">#0D1020</color>
+    <color name="icbg_neon">#0D1020</color>
+    <color name="icbg_sakura">#FFD9E6</color>
+    <color name="icbg_gold">#0A0A0B</color>
+    <color name="icbg_terminal">#040704</color>
+    <color name="icbg_ocean">#04161F</color>
 </resources>

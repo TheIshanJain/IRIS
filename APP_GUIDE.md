@@ -1,4 +1,6 @@
-# Cute Eyes Android app: step-by-step guide
+# IRIS Android app: step-by-step guide (first-time setup)
+
+> Already set up? To upgrade to IRIS 2.0, follow **[IRIS_GUIDE.md](IRIS_GUIDE.md)**. The app file is now called **IRIS.apk**.
 
 This guide takes you from "nothing" to "the app is on my phone and talks to my device".
 You don't need to install any programming tools. **GitHub builds the app for you, for free.**

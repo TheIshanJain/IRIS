@@ -1,15 +1,15 @@
 /*
- * Themes.h - expression themes (Personalization -> Themes in the web UI).
+ * Themes.h - eye expression themes (chosen in the IRIS app).
  *
- *   Basic Emotions | Playful & Cute | Animated Styles | Special Themes | Interaction & Status
+ *   Selectable (one at a time): Basic Emotions | Playful & Cute | Animated Styles | Special Themes
+ *   Status only:                Interaction & Status - used by the device itself to show
+ *                               connecting, charging, battery full/low, errors, notifications...
  *
  * "Playful & Cute" is the original set from Eyes.h, used as-is (same order, same
  * drawings), so expression numbers 1-11 mean exactly what they did before.
- * The other 44 expressions are drawn here using the helpers from Eyes.h.
  *
- * The user enables one or more themes; auto-cycle, "Next", the BOOT button and
- * shake only pick expressions from enabled themes. Any expression can still be
- * shown directly from the web UI.
+ * Auto-cycle, "Next", the BOOT button and shake only pick from the selected theme.
+ * The app's Developer section can still show any expression.
  */
 #pragma once
 
@@ -25,7 +25,9 @@ const char *const THEME_DESC[TH_COUNT] = {
   "Themed styles for different moods or modes",
   "Useful states for real-world interaction"
 };
-#define THEME_DEFAULT_MASK (1 << TH_PLAYFUL)   // same as before: only the original set
+#define THEME_DEFAULT      TH_PLAYFUL             // same as before: the original set
+#define THEME_DEFAULT_MASK (1 << TH_PLAYFUL)
+#define THEME_SELECTABLE(t) ((t) < TH_COUNT && (t) != TH_STATUS)
 
 // ---------------------------------------------------------------------------
 //  Extra colours + small drawing helpers
@@ -617,6 +619,15 @@ void xCharging(uint32_t t) {
   battery(93, 150, (t / 400) % 5, T_GREEN, T_GREEN);
 }
 
+void xBatteryFull(uint32_t t) {
+  float b = sinf(t * 0.004f) * 2;
+  halos(0, b);
+  happyEyeC(EYE_LX, EYE_Y - 6 + b, T_GREEN);
+  happyEyeC(EYE_RX, EYE_Y - 6 + b, T_GREEN);
+  battery(93, 150, 4, T_GREEN, T_GREEN);
+  sparkle(160, 146, 3 + (int)(fabsf(sinf(t * 0.008f)) * 5), C_WHITE);
+}
+
 void xLowBattery(uint32_t t) {
   lowerLid(EYE_LX, EYE_Y - 2, T_RED);
   lowerLid(EYE_RX, EYE_Y - 2, T_RED);
@@ -692,6 +703,7 @@ const ThemedExpr NEW_EXPRESSIONS[] = {
   { "Listening", TH_STATUS, xListening },   { "Speaking", TH_STATUS, xSpeaking },
   { "Processing", TH_STATUS, xProcessing }, { "Connecting", TH_STATUS, xConnecting },
   { "Charging", TH_STATUS, xCharging },     { "Low Battery", TH_STATUS, xLowBattery },
+  { "Battery Full", TH_STATUS, xBatteryFull },
   { "Error", TH_STATUS, xError },           { "Greeting", TH_STATUS, xGreeting },
   { "Goodbye", TH_STATUS, xGoodbye },
 };
@@ -747,6 +759,39 @@ public:
     for (int i = 0; i < _n; i++)
       if (enabled(i) && i != current) pool[m++] = i;
     return m ? pool[random(m)] : nextIndex(current);
+  }
+
+  // Exactly one selectable theme at a time
+  void setTheme(int t) {
+    if (!THEME_SELECTABLE(t)) t = THEME_DEFAULT;
+    mask = 1 << t;
+  }
+  int selectedTheme() const {
+    for (int t = 0; t < TH_COUNT; t++)
+      if (mask & (1 << t)) return t;
+    return THEME_DEFAULT;
+  }
+
+  // Draw a named expression (status faces) without changing the current one
+  bool drawNamed(const char *n, uint32_t t) {
+    int i = find(n);
+    if (i < 0) return false;
+    gfx->fillScreen(C_BLACK);
+    _items[i].draw(t);
+    return true;
+  }
+
+  // A friendly expression from the selected theme (after pairing / Wi-Fi connect)
+  int pleasant() const {
+    static const char *const happy[TH_COUNT][6] = {
+      { "Happy", "Big Smile", "Excited", "Love", "Wink", "Happy" },
+      { "Tongue Out", "Laughing", "Giggle", "Blushing", "Cheeky", "Cool Shades" },
+      { "Happy Wiggle", "Sparkle", "Rainbow", "Heartbeat", "Breathing", "Happy Wiggle" },
+      { "Heart Sparkle", "Cool", "Anime", "Galaxy", "XOXO", "Robot" },
+      { "Greeting", "Idle", "Greeting", "Idle", "Greeting", "Idle" },
+    };
+    int i = find(happy[selectedTheme()][random(6)]);
+    return i >= 0 ? i : firstEnabled();
   }
 
   // If the current expression's theme was just switched off, move on

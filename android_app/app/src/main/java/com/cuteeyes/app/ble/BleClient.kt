@@ -37,6 +37,7 @@ object BleIds {
     val SERVICE: UUID = UUID.fromString("6e1a0001-7b6e-4c3a-9d0e-c0ffee000001")
     val RX: UUID = UUID.fromString("6e1a0002-7b6e-4c3a-9d0e-c0ffee000001")   // phone -> device
     val TX: UUID = UUID.fromString("6e1a0003-7b6e-4c3a-9d0e-c0ffee000001")   // device -> phone
+    val FW: UUID = UUID.fromString("6e1a0004-7b6e-4c3a-9d0e-c0ffee000001")   // firmware upload
     val CCCD: UUID = UUID.fromString("00002902-0000-1000-8000-00805f9b34fb")  // "turn on notifications"
 }
 
@@ -137,7 +138,11 @@ class BleClient(private val context: Context, private val scope: CoroutineScope)
 
     private var gatt: BluetoothGatt? = null
     private var rxChar: BluetoothGattCharacteristic? = null
+    private var fwChar: BluetoothGattCharacteristic? = null
     private var mtu = 23
+
+    /** Bytes per write for raw data (firmware upload). */
+    val chunkSize: Int get() = (mtu - 3).coerceIn(20, 500)
     private val rxBuffer = ByteArrayOutputStream()
     private val writeMutex = Mutex()
     @Volatile private var writeAck: CompletableDeferred<Boolean>? = null
@@ -187,6 +192,7 @@ class BleClient(private val context: Context, private val scope: CoroutineScope)
         }
         gatt = null
         rxChar = null
+        fwChar = null
         mtu = 23
         synchronized(rxBuffer) { rxBuffer.reset() }
         writeAck?.complete(false)
@@ -251,6 +257,7 @@ class BleClient(private val context: Context, private val scope: CoroutineScope)
                 return
             }
             rxChar = rx
+            fwChar = service?.getCharacteristic(BleIds.FW)
             g.setCharacteristicNotification(tx, true)
             val cccd = tx.getDescriptor(BleIds.CCCD)
             if (cccd == null) {
@@ -315,13 +322,19 @@ class BleClient(private val context: Context, private val scope: CoroutineScope)
     // ------------------------------------------------------------------ send
 
     /** Send one JSON message. Returns false if it could not be delivered. */
-    suspend fun send(text: String): Boolean {
+    suspend fun send(text: String): Boolean = writeAll(rxChar, (text + "\n").toByteArray(Charsets.UTF_8))
+
+    /** Send raw firmware bytes (developer upload). */
+    suspend fun sendFirmware(bytes: ByteArray): Boolean = writeAll(fwChar, bytes)
+
+    val supportsFirmwareUpload: Boolean get() = fwChar != null
+
+    private suspend fun writeAll(target: BluetoothGattCharacteristic?, bytes: ByteArray): Boolean {
         writeMutex.withLock {
             val g = gatt ?: return false
-            val c = rxChar ?: return false
+            val c = target ?: return false
             if (_link.value != Link.Connected) return false
-            val bytes = (text + "\n").toByteArray(Charsets.UTF_8)
-            val chunk = (mtu - 3).coerceIn(20, 500)
+            val chunk = chunkSize
             var i = 0
             while (i < bytes.size) {
                 val part = bytes.copyOfRange(i, minOf(i + chunk, bytes.size))

@@ -6,8 +6,6 @@
  *    then the others (most recently added first). Passwords are kept in flash.
  *  - If the current network drops, it cycles through the saved ones.
  *  - Async scans for the web UI / mobile app "nearby networks" list.
- *  - Its own access point stays on the whole time (AP + STA mode), so the
- *    web UI is always reachable at http://192.168.4.1
  */
 #pragma once
 
@@ -31,19 +29,20 @@ public:
   std::function<void()>      onStateChange;   // connected / disconnected / attempting
   std::function<void(int n)> onScanDone;      // read results with WiFi.SSID(i) etc.
 
-  void begin(const char *hostname, const char *apSsid, const char *apPass) {
+  void begin(const char *hostname) {
     load();
     WiFi.persistent(false);          // we store credentials ourselves
     WiFi.setHostname(hostname);
-    WiFi.mode(WIFI_AP_STA);          // access point + station at the same time
+    WiFi.mode(WIFI_STA);             // home Wi-Fi only (everything else goes through the app)
     WiFi.setAutoReconnect(false);    // we handle reconnection/round-robin
-    WiFi.softAPConfig(IPAddress(192, 168, 4, 1), IPAddress(192, 168, 4, 1), IPAddress(255, 255, 255, 0));
-    if (WiFi.softAP(apSsid, apPass, 1, 0, 4)) {
-      Log.printf("[WiFi] Access point '%s' up at %s\n", apSsid, WiFi.softAPIP().toString().c_str());
-    } else {
-      Log.println("[WiFi] Failed to start access point");
-    }
     _nextAttemptAt = millis() + 1000;
+  }
+
+  // True once each time a new connection attempt starts (for the "Connecting" status face)
+  bool takeAttemptStarted() {
+    bool v = _attemptStarted;
+    _attemptStarted = false;
+    return v;
   }
 
   void loop() {
@@ -182,6 +181,7 @@ private:
     const SavedNet &n = _nets[i];
     WiFi.begin(n.ssid.c_str(), n.pass.length() ? n.pass.c_str() : nullptr);
     _attempting   = true;
+    _attemptStarted = true;
     _attemptStart = millis();
     Log.printf("[WiFi] Trying '%s'\n", n.ssid.c_str());
     fire();
@@ -234,4 +234,5 @@ private:
   uint32_t _attemptStart  = 0;
   uint32_t _nextAttemptAt = 0;
   String   _last;                          // last successfully connected SSID
+  bool     _attemptStarted = false;
 };

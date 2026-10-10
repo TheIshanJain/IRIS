@@ -37,21 +37,21 @@ jobs:
         run: gradle assembleRelease --no-daemon --stacktrace
 
       - name: Name the APK
-        run: cp android_app/app/build/outputs/apk/release/app-release.apk CuteEyes.apk
+        run: cp android_app/app/build/outputs/apk/release/app-release.apk IRIS.apk
 
       - name: Keep a copy in this run
         uses: actions/upload-artifact@v4
         with:
-          name: CuteEyes-android-app
-          path: CuteEyes.apk
+          name: IRIS-android-app
+          path: IRIS.apk
 
       - name: Publish to the "Android app" release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           gh release delete android-app --yes --cleanup-tag || true
-          gh release create android-app CuteEyes.apk \
+          gh release create android-app IRIS.apk \
             --target ${{ github.sha }} \
             --prerelease --latest=false \
-            --title "Android app (build ${{ github.run_number }})" \
-            --notes "Open this page on your Android phone and tap CuteEyes.apk to download and install."
+            --title "IRIS app (build ${{ github.run_number }})" \
+            --notes "Open this page on your Android phone and tap IRIS.apk to download and install."

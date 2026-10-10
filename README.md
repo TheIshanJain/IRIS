@@ -1,4 +1,6 @@
-# Cute Eyes: firmware, Cloud OTA and mobile app
+# IRIS (formerly Cute Eyes)
+
+> **IRIS 2.0:** the web UI and the device access point were removed; everything is in the Android app now. Start with **[IRIS_UPDATE_GUIDE.md](IRIS_UPDATE_GUIDE.md)**. Sections below about the web UI are out of date.
 
 > **Android app:** the app is now a native Kotlin app in `android_app/`. Follow **[APP_GUIDE.md](APP_GUIDE.md)** to build and install it. (The older Flutter `mobile_app` folder was removed; any mention of it below is out of date.)
 

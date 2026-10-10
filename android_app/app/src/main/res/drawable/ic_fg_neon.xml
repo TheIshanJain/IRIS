@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- IRIS icon (neon theme): round black face, two eyes -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp" android:height="108dp"
+    android:viewportWidth="108" android:viewportHeight="108">
+    <path android:fillColor="#000000" android:strokeColor="#46E1FF" android:strokeWidth="2.5"
+        android:pathData="M54,26 A28,28 0 1,1 53.99,26 Z" />
+    <path android:fillColor="#46E1FF" android:pathData="M41,44 a5,5 0 0,1 10,0 v18 a5,5 0 0,1 -10,0 z" />
+    <path android:fillColor="#46E1FF" android:pathData="M57,44 a5,5 0 0,1 10,0 v18 a5,5 0 0,1 -10,0 z" />
+</vector>
