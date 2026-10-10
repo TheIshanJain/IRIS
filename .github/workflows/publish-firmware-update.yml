@@ -1,0 +1,101 @@
+# Compiles the firmware in the cloud and publishes it as an OTA update.
+# Every Cute Eyes device on the internet picks it up automatically.
+#
+# How to use: bump FW_VERSION in firmware/ESP32S3_Cute_Eyes/Config.h, push,
+# then Actions tab -> "Publish firmware update" -> Run workflow.
+
+name: Publish firmware update
+
+on:
+  workflow_dispatch:
+    inputs:
+      notes:
+        description: 'What changed in this version (optional)'
+        required: false
+        default: ''
+
+permissions:
+  contents: write
+
+env:
+  SKETCH: firmware/ESP32S3_Cute_Eyes
+  FQBN: esp32:esp32:esp32s3:PartitionScheme=app3M_fat9M_16MB,FlashSize=16M,PSRAM=enabled
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Get the code
+        uses: actions/checkout@v4
+
+      - name: Read version and check settings
+        id: cfg
+        run: |
+          CFG="$SKETCH/Config.h"
+          VER=$(sed -n 's/^#define FW_VERSION *"\([^"]*\)".*/\1/p' "$CFG")
+          DEV=$(sed -n 's/^#define OTA_DEVICE_TYPE *"\([^"]*\)".*/\1/p' "$CFG")
+          URL=$(sed -n 's/^#define OTA_MANIFEST_URL *"\([^"]*\)".*/\1/p' "$CFG")
+          echo "Version: $VER   Device: $DEV"
+          echo "Manifest URL in Config.h: $URL"
+          if [ -z "$VER" ]; then echo "::error::Could not find FW_VERSION in Config.h"; exit 1; fi
+          EXPECTED="https://github.com/${{ github.repository }}/releases/latest/download/manifest.json"
+          if [ "$URL" != "$EXPECTED" ]; then
+            echo "::error::OTA_MANIFEST_URL in Config.h must be exactly: $EXPECTED"
+            exit 1
+          fi
+          if gh release view "v$VER" >/dev/null 2>&1; then
+            echo "::error::Version $VER was already published. Increase FW_VERSION in Config.h (e.g. 1.0.1 -> 1.0.2), push, and run again."
+            exit 1
+          fi
+          echo "version=$VER" >> "$GITHUB_OUTPUT"
+          echo "device=$DEV" >> "$GITHUB_OUTPUT"
+        env:
+          GH_TOKEN: ${{ github.token }}
+
+      - name: Install Arduino CLI
+        uses: arduino/setup-arduino-cli@v2
+
+      - name: Install ESP32 core and libraries
+        run: |
+          arduino-cli config init
+          arduino-cli config add board_manager.additional_urls https://espressif.github.io/arduino-esp32/package_esp32_index.json
+          arduino-cli core update-index
+          arduino-cli core install esp32:esp32@3.3.11
+          arduino-cli lib install "GFX Library for Arduino@1.6.8" || arduino-cli lib install "GFX Library for Arduino"
+          arduino-cli lib install "ArduinoJson@7.4.2" || arduino-cli lib install "ArduinoJson"
+
+      - name: Compile firmware
+        run: |
+          arduino-cli compile --fqbn "$FQBN" --libraries firmware/libraries --output-dir build "$SKETCH"
+          cp build/ESP32S3_Cute_Eyes.ino.bin firmware.bin
+          ls -l firmware.bin
+
+      - name: Create manifest.json
+        env:
+          NOTES: ${{ github.event.inputs.notes }}
+        run: |
+          python3 - <<'PY'
+          import hashlib, json, os
+          data = open('firmware.bin', 'rb').read()
+          manifest = {
+              "device": "${{ steps.cfg.outputs.device }}",
+              "version": "${{ steps.cfg.outputs.version }}",
+              "url": "https://github.com/${{ github.repository }}/releases/download/v${{ steps.cfg.outputs.version }}/firmware.bin",
+              "md5": hashlib.md5(data).hexdigest(),
+              "notes": os.environ.get("NOTES", ""),
+          }
+          json.dump(manifest, open('manifest.json', 'w'), indent=2)
+          print(json.dumps(manifest, indent=2))
+          PY
+
+      - name: Publish release (devices will update)
+        env:
+          GH_TOKEN: ${{ github.token }}
+          NOTES: ${{ github.event.inputs.notes }}
+        run: |
+          [ -z "$NOTES" ] && NOTES="Firmware update"
+          gh release create "v${{ steps.cfg.outputs.version }}" firmware.bin manifest.json \
+            --target ${{ github.sha }} \
+            --latest \
+            --title "Firmware v${{ steps.cfg.outputs.version }}" \
+            --notes "$NOTES"

@@ -1,0 +1,7 @@
+# Build output - created by the build, never uploaded
+.gradle/
+build/
+app/build/
+local.properties
+*.iml
+.idea/
